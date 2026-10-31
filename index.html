@@ -2057,7 +2057,7 @@ function viewAccounts() {
     const left = days(today(), a.graceUntil);
     return `<div class="${left <= 14 ? 'neg' : 'mute'}">${left < 0 ? '⚠ беспроцентный период закончился ' + dRu(a.graceUntil) : 'Беспроцентный период до ' + dRu(a.graceUntil) + ' · осталось ' + left + ' дн. · нужно погасить ' + fmt(-T.R.bal[a.id])}</div>`;
   };
-  const row = a => `<tr class="${diffOf(a) ? 'diffrow' : ''}"><td>${esc(a.name)}<div class="mute">${ACC_TYPES[a.type]}${cur(a) !== 'RUB' ? ' · валюта ' + cur(a) : ''}${reconTag(a)}</div>${graceTag(a)}</td><td class="n ${T.R.bal[a.id] < 0 ? 'neg' : ''}">${fmtC(T.R.bal[a.id], cur(a))}${cur(a) !== 'RUB' && rateOf(cur(a)) ? `<div class="mute">≈ ${fmt(T.R.bal[a.id] * rateOf(cur(a)))}</div>` : ''}</td><td class="n"><button class="lnk" data-act="recon" data-id="${a.id}">${isRevalAcc(a) ? 'обновить стоимость' : 'сверить с банком'}</button></td></tr>`;
+  const row = a => `<tr class="${diffOf(a) ? 'diffrow' : ''}"><td>${esc(a.name)}<div class="mute">${ACC_TYPES[a.type]}${cur(a) !== 'RUB' ? ' · валюта ' + cur(a) : ''}${reconTag(a)}</div>${graceTag(a)}<div style="margin-top:4px"><button class="lnk" data-act="recon" data-id="${a.id}">${isRevalAcc(a) ? 'обновить стоимость' : 'сверить с банком'}</button></div></td><td class="n ${T.R.bal[a.id] < 0 ? 'neg' : ''}">${fmtC(T.R.bal[a.id], cur(a))}${cur(a) !== 'RUB' && rateOf(cur(a)) ? `<div class="mute">≈ ${fmt(T.R.bal[a.id] * rateOf(cur(a)))}</div>` : ''}</td></tr>`;
   const mineCash = S.accounts.filter(a => isMine(a) && !SAVING(a.type)), mineSav = S.accounts.filter(a => isMine(a) && SAVING(a.type));
   const foreign = S.accounts.filter(a => !isMine(a));
   const flRows = Object.entries(T.R.fl).filter(([, v]) => Math.abs(v) > 0.004), rcRows = Object.entries(T.R.rc).filter(([, v]) => Math.abs(v) > 0.004);
@@ -2075,7 +2075,7 @@ function viewAccounts() {
   ${Object.keys(T.fx).length ? `<div class="card"><div class="row"><div style="max-width:220px"><label>Курс доллара, ₽ за 1 $ (для пересчёта в итоги)</label><input data-rate="USD" inputmode="decimal" value="${S.rates.USD || ''}" placeholder="например 90"></div><p class="mute" style="flex:1;margin:18px 0 0">Доллары хранятся в долларах, в рублях они считаются только для «чистого итога» и по этому курсу. Обновляйте курс, когда хотите увидеть актуальную оценку.</p></div>${T.noRate ? '<div class="warn" style="margin:10px 0 0">Укажите курс — пока доллары в итоги не включены.</div>' : ''}</div>` : ''}
   <div class="card"><h2>Мои счета</h2><div class="scroll"><table>${mineCash.map(row).join('')}</table></div>
   <h3>Накопления и инвестиции</h3><div class="scroll"><table>${mineSav.map(row).join('')}</table></div></div>
-  ${foreign.length ? `<div class="card"><h2>Счета и кошельки других людей</h2><p class="mute">Не входят в ваш итог.</p><div class="scroll"><table>${foreign.map(a => `<tr><td>${esc(a.name)}<div class="mute">владелец: ${esc(a.owner)}</div></td><td class="n">${fmt(T.R.bal[a.id])}</td><td class="n"><button class="lnk" data-act="recon" data-id="${a.id}">сверить</button></td></tr>`).join('')}</table></div></div>` : ''}
+  ${foreign.length ? `<div class="card"><h2>Счета и кошельки других людей</h2><p class="mute">Не входят в ваш итог.</p><div class="scroll"><table>${foreign.map(a => `<tr><td>${esc(a.name)}<div class="mute">владелец: ${esc(a.owner)}</div><div style="margin-top:4px"><button class="lnk" data-act="recon" data-id="${a.id}">сверить</button></div></td><td class="n">${fmt(T.R.bal[a.id])}</td></tr>`).join('')}</table></div></div>` : ''}
   ${Object.keys(T.nets).length ? `<div class="card"><h2>Взаиморасчёты с людьми</h2><table>${Object.entries(T.nets).map(([p, v]) => `<tr><td>${esc(p)}</td><td>${v > 0 ? 'должен(на) мне' : 'я должна'}</td><td class="n ${v > 0 ? 'pos' : 'neg'}">${fmt(Math.abs(v))}</td></tr>`).join('')}</table></div>` : ''}`;
 }
 function loanStats(l) {
@@ -2199,65 +2199,64 @@ const MONTH_FULL = ['январь','февраль','март','апрель','�
 const monthLabel = k => MONTH_FULL[+k.slice(5) - 1] + ' ' + k.slice(0, 4);
 function viewSpend() {
   const y = +SM.slice(0, 4), m = +SM.slice(5), dim = new Date(y, m, 0).getDate();
-  const prevKey = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`;
-  const pdim = new Date(+prevKey.slice(0, 4), +prevKey.slice(5), 0).getDate();
   const cur_ = SM === today().slice(0, 7), upTo = cur_ ? +today().slice(8) : dim;
   const fl = flows().filter(x => x.k === 'e');
-  /** нарастающий итог по дням месяца key: массив [0..31] */
-  const cumul = (key, cats) => {
+  /** траты по дням месяца key: массив [0..31] */
+  const daily = (key, cats) => {
     const a = Array(32).fill(0);
-    fl.filter(x => x.d.startsWith(key) && (!cats || cats.includes(x.c))).forEach(x => a[+x.d.slice(8)] += x.a);
-    let s = 0; return a.map((v, i) => i ? (s = r2(s + v)) : 0);
+    fl.filter(x => x.d.startsWith(key) && (!cats || cats.includes(x.c))).forEach(x => { a[+x.d.slice(8)] = r2(a[+x.d.slice(8)] + x.a); });
+    return a;
   };
+  const sumTo = a => r2(a.slice(1, upTo + 1).reduce((s, v) => s + v, 0));
+  /** нарастающий итог по дням месяца key: массив [0..31] */
+  const cumul = (key, cats) => { let s = 0; return daily(key, cats).map((v, i) => i ? (s = r2(s + v)) : 0); };
   const known = new Set(S.cats.exp.flatMap(g => g.items));
   const extra = [...new Set(fl.map(x => x.c))].filter(c => !known.has(c));
   const groups = [...S.cats.exp.map(g => ({g: g.g, items: g.items})), ...(extra.length ? [{g: 'Прочее (служебные)', items: extra}] : [])];
-  const all = cumul(SM), allPrev = cumul(prevKey);
-  const total = all[upTo], prevSame = allPrev[Math.min(upTo, pdim)], prevFull = allPrev[pdim];
-  const avg = upTo ? total / upTo : 0, forecast = cur_ ? r2(avg * dim) : null;
-  // таблица по статьям: на сегодня, доля, прошлый месяц на эту же дату
+  const all = cumul(SM), dAll = daily(SM), total = sumTo(dAll);
+  // таблицы по статьям: итог за месяц с долей и траты по дням (в клетке только траты этого дня)
   let rows = '', rowsD = '';
-  const diffCell = (a, b) => { const d = r2(a - b); return `<td class="n ${d > 0 ? 'neg' : d < 0 ? 'pos' : 'mute'}">${d ? (d > 0 ? '+' : '−') + nf.format(Math.abs(Math.round(d))) : '·'}</td>`; };
-  const dayCells = c => Array.from({length: dim}, (_, i) => i + 1 > upTo ? '<td class="n"></td>' : `<td class="n ${c[i + 1] ? '' : 'mute'}">${c[i + 1] ? nf.format(Math.round(c[i + 1])) : '·'}</td>`).join('');
+  const dayCells = c => Array.from({length: dim}, (_, i) => i + 1 > upTo ? '<td class="n"></td>' : `<td class="n ${c[i + 1] ? '' : 'mute'}">${c[i + 1] ? nf.format(Math.round(c[i + 1])) : '·'}</td>`).join('') + `<td class="n"><b>${nf.format(Math.round(sumTo(c)))}</b></td>`;
   groups.forEach(g => {
-    const gc = cumul(SM, g.items), gp = cumul(prevKey, g.items);
-    if (!gc[upTo] && !gp[pdim]) return;
-    const pct = total ? Math.round(gc[upTo] / total * 100) : 0;
-    rows += `<tr class="grp"><td>${esc(g.g)}</td><td class="n">${nf.format(Math.round(gc[upTo]))}</td><td class="n mute">${pct}%</td><td class="n">${nf.format(Math.round(gp[Math.min(upTo, pdim)]))}</td>${diffCell(gc[upTo], gp[Math.min(upTo, pdim)])}<td class="n mute">${nf.format(Math.round(gp[pdim]))}</td></tr>`;
-    rowsD += `<tr class="grp"><td class="sticky">${esc(g.g)}</td>${dayCells(gc)}</tr>`;
+    const gd = daily(SM, g.items), gt = sumTo(gd);
+    if (!gt) return;
+    const act = g.items.filter(c => sumTo(daily(SM, [c])));
+    if (act.length === 1) { // в группе одна статья: одна строка вместо двух одинаковых
+      const nm = esc(g.g) + ' · ' + esc(act[0]);
+      rows += `<tr class="grp"><td>${nm}</td><td class="n">${nf.format(Math.round(gt))}</td><td class="n mute">${total ? Math.round(gt / total * 100) : 0}%</td></tr>`;
+      rowsD += `<tr class="grp"><td class="sticky">${nm}</td>${dayCells(gd)}</tr>`;
+      return;
+    }
+    rows += `<tr class="grp"><td>${esc(g.g)}</td><td class="n">${nf.format(Math.round(gt))}</td><td class="n mute">${total ? Math.round(gt / total * 100) : 0}%</td></tr>`;
+    rowsD += `<tr class="grp"><td class="sticky">${esc(g.g)}</td>${dayCells(gd)}</tr>`;
     g.items.forEach(c => {
-      const cc = cumul(SM, [c]), cp = cumul(prevKey, [c]);
-      if (!cc[upTo] && !cp[pdim]) return;
-      rows += `<tr><td>&nbsp;&nbsp;&nbsp;${esc(c)}</td><td class="n">${nf.format(Math.round(cc[upTo]))}</td><td class="n mute">${total ? Math.round(cc[upTo] / total * 100) : 0}%</td><td class="n">${nf.format(Math.round(cp[Math.min(upTo, pdim)]))}</td>${diffCell(cc[upTo], cp[Math.min(upTo, pdim)])}<td class="n mute">${nf.format(Math.round(cp[pdim]))}</td></tr>`;
-      rowsD += `<tr><td class="sticky">&nbsp;&nbsp;${esc(c)}</td>${dayCells(cc)}</tr>`;
+      const cd = daily(SM, [c]), ct = sumTo(cd);
+      if (!ct) return;
+      rows += `<tr><td>&nbsp;&nbsp;&nbsp;${esc(c)}</td><td class="n">${nf.format(Math.round(ct))}</td><td class="n mute">${total ? Math.round(ct / total * 100) : 0}%</td></tr>`;
+      rowsD += `<tr><td class="sticky">&nbsp;&nbsp;${esc(c)}</td>${dayCells(cd)}</tr>`;
     });
   });
-  // график: нарастающий итог всех трат, этот месяц и прошлый
-  const W = 720, H = 220, L = 56, B = 26, T = 12, R = 12, maxDay = Math.max(dim, pdim);
-  const maxV = Math.max(1, ...all.slice(1, upTo + 1), ...allPrev.slice(1, pdim + 1));
-  const X = d => L + (W - L - R) * (d - 1) / Math.max(1, maxDay - 1), Y = v => T + (H - T - B) * (1 - v / maxV);
+  // график: нарастающий итог всех трат за выбранный месяц
+  const W = 720, H = 220, L = 56, B = 26, T = 12, R = 12;
+  const maxV = Math.max(1, ...all.slice(1, upTo + 1));
+  const X = d => L + (W - L - R) * (d - 1) / Math.max(1, dim - 1), Y = v => T + (H - T - B) * (1 - v / maxV);
   const path = (arr, n) => Array.from({length: n}, (_, i) => `${i ? 'L' : 'M'}${X(i + 1).toFixed(1)},${Y(arr[i + 1]).toFixed(1)}`).join('');
   const ticks = [0, .25, .5, .75, 1].map(f => `<line x1="${L}" x2="${W - R}" y1="${Y(maxV * f)}" y2="${Y(maxV * f)}" style="stroke:var(--line)"/><text x="${L - 6}" y="${Y(maxV * f) + 4}" text-anchor="end" font-size="11" style="fill:var(--mute)">${nf.format(Math.round(maxV * f / 1000))}к</text>`).join('');
-  const xt = [1, 5, 10, 15, 20, 25, 30].filter(d => d <= maxDay).map(d => `<text x="${X(d)}" y="${H - 8}" text-anchor="middle" font-size="11" style="fill:var(--mute)">${d}</text>`).join('');
+  const xt = [1, 5, 10, 15, 20, 25, 30].filter(d => d <= dim).map(d => `<text x="${X(d)}" y="${H - 8}" text-anchor="middle" font-size="11" style="fill:var(--mute)">${d}</text>`).join('');
   const chart = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Нарастающий итог трат по дням">${ticks}${xt}
-    <path d="${path(allPrev, pdim)}" fill="none" stroke-dasharray="5 4" stroke-width="2" style="stroke:var(--mute)"/>
     <path d="${path(all, upTo)}" fill="none" stroke-width="3" style="stroke:var(--acc)"/>
-    <circle cx="${X(upTo)}" cy="${Y(all[upTo])}" r="4" style="fill:var(--acc)"/></svg>
-    <div class="mute" style="font-size:13px"><span style="color:var(--acc)">━</span> ${monthLabel(SM)} &nbsp; <span>╍</span> ${monthLabel(prevKey)} (для сравнения)</div>`;
+    <circle cx="${X(upTo)}" cy="${Y(all[upTo])}" r="4" style="fill:var(--acc)"/></svg>`;
   const months = [...new Set([today().slice(0, 7), ...S.ops.map(o => o.date.slice(0, 7))])].sort().reverse();
   const tdy = cur_ ? `на ${upTo}-е число` : 'за месяц';
   return `<div class="row" style="margin-bottom:12px"><h2 style="margin:0">Траты за месяц</h2>
     <select style="max-width:200px" data-sm="1">${months.map(k => `<option value="${k}" ${k === SM ? 'selected' : ''}>${monthLabel(k)}</option>`).join('')}</select></div>
   <div class="kpis">
     <div class="kpi"><span>Потрачено ${tdy}</span><b>${fmt(total)}</b></div>
-    <div class="kpi"><span>В прошлом месяце на эту дату</span><b>${fmt(prevSame)}</b><span class="${total > prevSame ? 'neg' : 'pos'}">${total === prevSame ? 'столько же' : (total > prevSame ? 'больше на ' : 'меньше на ') + fmt(Math.abs(total - prevSame))}</span></div>
-    <div class="kpi"><span>В среднем в день</span><b>${fmt(avg)}</b></div>
-    ${forecast != null ? `<div class="kpi"><span>Прогноз на конец месяца</span><b>${fmt(forecast)}</b><span>если тратить в том же темпе</span></div>` : `<div class="kpi"><span>Весь прошлый месяц</span><b>${fmt(prevFull)}</b></div>`}
   </div>
   <div class="card"><h2>Нарастающий итог всех трат по дням</h2>${chart}</div>
-  <div class="card scroll"><h2>По статьям ${tdy}</h2><table><tr><th>Статья</th><th class="n">Потрачено</th><th class="n">Доля</th><th class="n">Прошлый мес. на эту дату</th><th class="n">Разница</th><th class="n">Прошлый мес. весь</th></tr>${rows || '<tr><td colspan="6" class="mute">В этом месяце расходов пока нет.</td></tr>'}<tr class="tot"><td>Всего</td><td class="n">${nf.format(Math.round(total))}</td><td></td><td class="n">${nf.format(Math.round(prevSame))}</td>${diffCell(total, prevSame)}<td class="n">${nf.format(Math.round(prevFull))}</td></tr></table></div>
-  <div class="card"><h2>Нарастающим итогом по дням, по статьям</h2><p class="mute" style="margin-top:0">В каждой клетке — сколько всего потрачено на статью с начала месяца по этот день включительно.</p>
-  <div class="scroll"><table class="days"><tr><th class="sticky">Статья</th>${Array.from({length: dim}, (_, i) => `<th class="n">${i + 1}</th>`).join('')}</tr>${rowsD}<tr class="tot"><td class="sticky">Всего</td>${dayCells(all)}</tr></table></div></div>
+  <div class="card scroll"><h2>По статьям ${tdy}</h2><table><tr><th>Статья</th><th class="n">Потрачено</th><th class="n">Доля</th></tr>${rows || '<tr><td colspan="3" class="mute">В этом месяце расходов пока нет.</td></tr>'}<tr class="tot"><td>Всего</td><td class="n">${nf.format(Math.round(total))}</td><td></td></tr></table></div>
+  <div class="card"><h2>Траты по дням, по статьям</h2><p class="mute" style="margin-top:0">В каждой клетке — сколько потрачено на статью именно в этот день. Справа — итог за месяц.</p>
+  <div class="scroll"><table class="days"><tr><th class="sticky">Статья</th>${Array.from({length: dim}, (_, i) => `<th class="n">${i + 1}</th>`).join('')}<th class="n">Итого</th></tr>${rowsD}<tr class="tot"><td class="sticky">Всего</td>${dayCells(dAll)}</tr></table></div></div>
   <p class="mute">В расходы здесь входят только траты и проценты по кредитам. Переводы между своими счетами, вклады и тело кредита не учитываются.</p>`;
 }
 const views = {entry: viewEntry, journal: viewJournal, spend: viewSpend, accounts: viewAccounts, loans: viewLoans, report: viewReport, settings: viewSettings, help: viewHelp};
