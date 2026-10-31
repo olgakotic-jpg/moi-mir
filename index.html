@@ -406,7 +406,8 @@ function viewData() {
     <div class="card"><h2>Данные и резервные копии</h2>
     <p class="mute" style="margin-top:0">Данные хранятся в этом браузере. Чтобы они не потерялись, подключите файл: программа будет сама записывать всё в него.</p>
     <div class="row"><button class="primary" data-act="connect">${fileHandle ? 'Сменить файл данных' : 'Подключить файл данных'}</button><button class="ghost" data-act="backup">Скачать копию</button>
-      <label class="ghost" style="margin:0;cursor:pointer;color:var(--ink);font-size:16px">Загрузить из копии<input type="file" accept=".json" id="imp" hidden></label></div>
+      <label class="ghost" style="margin:0;cursor:pointer;color:var(--ink);font-size:16px">Загрузить из копии<input type="file" accept=".json" id="imp" hidden></label>
+      <label class="ghost" style="margin:0;cursor:pointer;color:var(--ink);font-size:16px" title="Добавляет из файла то, чего здесь нет; ничего не стирает">Добавить из копии (объединить)<input type="file" accept=".json" id="impm" hidden></label></div>
     <p class="mute">Файл: ${fileHandle ? (filePerm ? '<span class="ok">подключён, автосохранение работает</span>' : 'подключён, нужно разрешение') : 'не подключён'} · последняя копия: ${D.lastBackup || 'нет'}</p></div>`;
 }
 /* ================= раздел «Дела и задачи» ================= */
@@ -1690,6 +1691,7 @@ document.addEventListener('change', e => {
   if (e.target.closest('#finRoot')) return;
   const t = e.target;
   if (t.id === 'imp') { const f = t.files[0]; if (!f) return; f.text().then(x => { const d = JSON.parse(x); if (!d.people || !d.holidays) throw 0; if (!confirm('Заменить текущие данные данными из файла?')) return; D = d; if (!D.tasks) D.tasks = []; if (!D.rules) D.rules = []; if (!D.log) D.log = {}; if (!D.trips) D.trips = []; if (!D.recipes) D.recipes = []; if (!D.menu) D.menu = {}; if (!D.shop) D.shop = []; if (!D.events) D.events = []; ensureHC(); persist(); render(); toast('Данные загружены'); }).catch(() => toast('Не удалось прочитать файл')); }
+  else if (t.id === 'impm') { const f = t.files[0]; if (!f) return; f.text().then(x => { const d = JSON.parse(x); if (!d.people || !d.holidays) throw 0; const before = dataCounts(D); if (!confirm('Добавить в текущие данные всё, чего в них нет, из этого файла? Уже имеющиеся записи останутся как есть.')) return; D = mergeVal(D, d); if (D.tomb) pruneTomb(D, D.tomb); ensureAll(); knownIds = idList(D, new Set()); try { FINMOD.render(); } catch (e) {} persist(); render(); toast('Добавлено. Было: ' + before + '. Стало: ' + dataCounts(D)); }).catch(() => toast('Не удалось прочитать файл')); t.value = ''; }
   else if (t.dataset.horizon) { horizon = +t.value; render(); }
   else if (t.dataset.tlist) { tlist = t.value; render(); }
   else if (t.dataset.prof) { D.profile.name = t.value.trim(); persist(); toast('Сохранено'); }
