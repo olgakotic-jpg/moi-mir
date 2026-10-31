@@ -130,7 +130,10 @@ dialog::backdrop{background:#0006}
 .fin nav{margin-bottom:14px}
 @media (max-width:640px){.fin .tiles{grid-template-columns:repeat(2,1fr)}}
 .fin nav{display:flex;gap:4px;flex-wrap:wrap}
-.fin nav button{border:0;background:none;color:var(--mute);padding:7px 11px;border-radius:8px;font:inherit;cursor:pointer}
+.fin nav button{border:0;background:none;color:var(--ink);padding:7px 11px;border-radius:8px;font:inherit;cursor:pointer}
+.fin nav,main nav{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:5px;margin-left:0;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+main nav button{color:var(--ink)}
+main nav button.on,.fin nav button.on{color:var(--acc)}
 .fin nav button.on{background:var(--acc2);color:var(--acc);font-weight:600}
 .fin h2{font-size:17px;margin:0 0 12px}
 .fin h3{font-size:14px;margin:14px 0 6px;color:var(--mute);text-transform:uppercase;letter-spacing:.03em}
@@ -226,8 +229,26 @@ if (!D.recipes) D.recipes = [];
 if (!D.menu) D.menu = {};
 if (!D.shop) D.shop = [];
 if (!D.events) D.events = [];
+/* --- память об удалённом: id удалённых записей хранятся в D.tomb, чтобы при объединении данных они не возвращались --- */
+function idList(o, out) {
+  if (Array.isArray(o)) { if (o.length && o.every(x => x && typeof x === 'object' && x.id)) o.forEach(x => out.add(x.id)); o.forEach(x => idList(x, out)); }
+  else if (o && typeof o === 'object') for (const k in o) if (k !== 'tomb') idList(o[k], out);
+  return out;
+}
+function pruneTomb(o, t) {
+  if (Array.isArray(o)) { for (let i = o.length - 1; i >= 0; i--) { const x = o[i]; if (x && typeof x === 'object' && x.id && t[x.id]) o.splice(i, 1); else pruneTomb(x, t); } }
+  else if (o && typeof o === 'object') for (const k in o) if (k !== 'tomb') pruneTomb(o[k], t);
+}
+let knownIds = idList(D, new Set());
+function trackDeletes() {
+  const cur = idList(D, new Set()), now = Date.now();
+  knownIds.forEach(id => { if (!cur.has(id)) (D.tomb = D.tomb || {})[id] = now; });
+  if (D.tomb) for (const id in D.tomb) if (now - D.tomb[id] > 18e6 * 1000) delete D.tomb[id]; // помним удалённое около 200 дней
+  knownIds = cur;
+}
 let fileHandle = null, filePerm = false, saveTimer = null;
 function persist() {
+  try { trackDeletes(); } catch (e) {}
   try { localStorage.setItem(LS, JSON.stringify(D)); } catch (e) {}
   clearTimeout(saveTimer); saveTimer = setTimeout(writeFile, 400);
   try { markDirty(); } catch (e) {} // изменилось: отправим в Google Диск, если синхронизация включена (при самом первом запуске ещё не готово)
@@ -262,7 +283,7 @@ function backupNow() { download('moi-mir-' + iso(todayD()) + '.json', JSON.strin
 function renderBanner() {
   let msg = '';
   if (fileHandle && !filePerm) msg = 'Автосохранение в файл на паузе. <button class="lnk" data-act="regrant">Разрешить</button>';
-  else if (!fileHandle && (D.people.length || D.tasks.length || D.recipes.length || D.trips.length || D.events.length || D.health.visits.length || D.cycle.periods.length || (D.fin && D.fin.ops && D.fin.ops.length)) && (!D.lastBackup || dayDiff(new Date(D.lastBackup), todayD()) > 7)) msg = 'Давно не было резервной копии. <button class="lnk" data-act="backup">Скачать копию</button> или <button class="lnk" data-act="goData">подключить файл данных</button>.';
+  else if (!fileHandle && !(() => { try { return SYNCST.enabled; } catch (e) { return false; } })() && (D.people.length || D.tasks.length || D.recipes.length || D.trips.length || D.events.length || D.health.visits.length || D.cycle.periods.length || (D.fin && D.fin.ops && D.fin.ops.length)) && (!D.lastBackup || dayDiff(new Date(D.lastBackup), todayD()) > 7)) msg = 'Давно не было резервной копии. <button class="lnk" data-act="backup">Скачать копию</button> или <button class="lnk" data-act="goData">подключить файл данных</button>.';
   $('#banner').innerHTML = msg ? `<div class="warn" style="margin:0">${msg}</div>` : '';
 }
 
@@ -2744,13 +2765,13 @@ function conflictChoose(remoteObj, env, first) {
       <div class="card" style="margin:8px 0"><b>В Google Диске</b>${when ? ' (сохранено ' + when + ')' : ''}<div class="mute">${dataCounts(remoteObj)}</div></div>
       <div class="card" style="margin:8px 0"><b>На этом устройстве</b><div class="mute">${dataCounts(D)}</div></div>
       <div class="col" style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
-        <button class="primary" id="cf_merge">Объединить (рекомендую)</button><div class="mute" style="font-size:13px;margin-top:-4px">Сохранятся записи из обоих мест. Если одну и ту же запись правили в обоих, останется версия с этого устройства. Удалённое в одном из мест может вернуться.</div>
+        <button class="primary" id="cf_merge">Объединить (рекомендую)</button><div class="mute" style="font-size:13px;margin-top:-4px">Сохранятся записи из обоих мест. Если одну и ту же запись правили в обоих, останется версия с этого устройства. Записи, удалённые в одном из мест после этого обновления, не вернутся.</div>
         <button class="ghost" id="cf_remote">Взять данные из Google (здесь всё заменится)</button><button class="ghost" id="cf_local">Оставить данные этого устройства (в Google всё заменится)</button></div>`;
     if (!d.open) d.showModal(); d.addEventListener('close', () => resolve('cancel'), {once: true});
     const pick = v => () => { d.removeEventListener('close', () => {}); d.close(); resolve(v); }; $('#cf_merge').onclick = pick('merge'); $('#cf_remote').onclick = pick('remote'); $('#cf_local').onclick = pick('local');
   });
 }
-function applyRemote(obj, rev) { syncApplying = true; D = obj; ensureAll(); try { localStorage.setItem(LS, JSON.stringify(D)); } catch (e) {} SYNCST.baseRev = rev; saveSyncSt(); syncDirty = false; try { localStorage.setItem(SYNC_DIRTY, '0'); } catch (e) {} syncApplying = false; if (window.FINMOD) { try { FINMOD.render(); } catch (e) {} } render(); }
+function applyRemote(obj, rev) { syncApplying = true; D = obj; ensureAll(); knownIds = idList(D, new Set()); try { localStorage.setItem(LS, JSON.stringify(D)); } catch (e) {} SYNCST.baseRev = rev; saveSyncSt(); syncDirty = false; try { localStorage.setItem(SYNC_DIRTY, '0'); } catch (e) {} syncApplying = false; if (window.FINMOD) { try { FINMOD.render(); } catch (e) {} } render(); }
 async function pushState(f, key, rev) {
   if (f) { // резервная копия предыдущей версии (не чаще раза в 6 часов), хранятся 8 последних
     const bks = await driveApi.list(`name contains 'backup-' and trashed=false`);
@@ -2775,7 +2796,7 @@ async function syncNow(interactive) {
     if (first && isPristine()) { applyRemote(remote, env.rev); lastSyncAt = Date.now(); setSync('ok', 'Данные получены из Google Диска'); return; }
     const ch = await conflictChoose(remote, env, first); if (ch === 'cancel') { setSync('idle', 'Синхронизация отложена'); return; }
     if (ch === 'remote') applyRemote(remote, env.rev);
-    else { if (ch === 'merge') { syncApplying = true; D = mergeVal(D, remote); ensureAll(); syncApplying = false; try { localStorage.setItem(LS, JSON.stringify(D)); } catch (e) {} } await pushState(f, key, env.rev + 1); if (ch === 'merge') render(); }
+    else { if (ch === 'merge') { syncApplying = true; D = mergeVal(D, remote); if (D.tomb) pruneTomb(D, D.tomb); ensureAll(); knownIds = idList(D, new Set()); syncApplying = false; try { localStorage.setItem(LS, JSON.stringify(D)); } catch (e) {} } await pushState(f, key, env.rev + 1); if (ch === 'merge') render(); }
     lastSyncAt = Date.now(); setSync('ok', 'Синхронизировано');
   } catch (e) {
     if (e.message === 'auth') setSync('auth'); else if (e.message === 'offline') setSync('offline'); else setSync('err', e.message);
