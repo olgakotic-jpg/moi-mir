@@ -315,7 +315,7 @@ function holWho(h) {
   return names.join(', ');
 }
 function whenBox(e) {
-  const cls = e.left === 0 ? 'today' : e.left <= 7 ? 'soon' : '';
+  const cls = ''; // все даты одного цвета, без выделения «сегодня» и «скоро»
   const big = e.left === 0 ? 'сегодня' : e.left === 1 ? 'завтра' : `через ${e.left} ${plural(e.left, 'день', 'дня', 'дней')}`;
   return `<div class="when ${cls}">${big}<small>${e.date.getDate()} ${MONTHS[e.date.getMonth()]}</small></div>`;
 }
@@ -362,9 +362,9 @@ function viewHome() {
       <div class="mute">Сегодня ${wd}, ${todayD().getDate()} ${MONTHS[todayD().getMonth()]} ${todayD().getFullYear()}</div></div>
     ${nextVisit ? `<h3>Ближайший приём</h3><div class="ev" style="cursor:pointer" data-act="open" data-v="health"><div class="when ${dayDiff(todayD(), pd(nextVisit.date)) <= 1 ? 'today' : 'soon'}">${dayDiff(todayD(), pd(nextVisit.date)) === 0 ? 'сегодня' : dayDiff(todayD(), pd(nextVisit.date)) === 1 ? 'завтра' : 'через ' + dayDiff(todayD(), pd(nextVisit.date)) + ' дн.'}<small>${pd(nextVisit.date).getDate()} ${MONTHS[pd(nextVisit.date).getMonth()]}${nextVisit.time ? ', ' + nextVisit.time : ''}</small></div><div class="t"><b>🩺 ${esc(nextVisit.title)}</b><div class="mute">${esc([nextVisit.who, nextVisit.place].filter(Boolean).join(' · '))}</div></div></div>` : ''}
     ${mtLines.length ? `<h3>Меню на сегодня</h3><div style="cursor:pointer" data-act="open" data-v="food">${mtLines.join('')}</div>` : ''}
-    ${nextTrip ? `<h3>Ближайший отпуск</h3><div class="ev" style="cursor:pointer" data-act="openTrip" data-id="${nextTrip.id}"><div class="when soon">${tripLeft(nextTrip).txt.replace('идёт сейчас 🌴', 'сейчас')}<small>${tripDates(nextTrip).split(' · ')[0]}</small></div><div class="t"><b>🏖️ ${esc(nextTrip.title)}</b><div class="mute">${nextTrip.place ? esc(nextTrip.place) + ' · ' : ''}${(() => { const p = tripProgress(nextTrip), parts = [['дела и планы', p.todo], ['сборы', p.pack], ['брони', p.book]].filter(([, v]) => v != null).map(([n, v]) => `${n} ${v}%`); return parts.length ? 'готовность: ' + parts.join(', ') : 'нажмите, чтобы добавить дела, брони и бюджет'; })()}</div></div></div>` : ''}
     ${rl.length ? `<h3>Правила на сегодня: выполнено ${rl.length - left.length} из ${rl.length}</h3>${left.length ? left.slice(0, 6).map(r => ruleRow(r, tdy)).join('') : '<div class="ev"><div class="t">🎉 Все правила на сегодня выполнены!</div></div>'}${left.length > 6 ? `<p class="mute">…и ещё ${left.length - 6}. <button class="lnk" data-act="open" data-v="rules">Все правила</button></p>` : ''}` : ''}
     ${todo.length ? `<h3>Дела на сегодня и просроченные (${todo.length})</h3>${todo.slice(0, 6).map(t => taskRow(t, {compact: true})).join('')}${todo.length > 6 ? `<p class="mute">…и ещё ${todo.length - 6}. <button class="lnk" data-act="open" data-v="tasks">Все дела</button></p>` : ''}` : ''}
+    ${nextTrip ? `<h3>Ближайший отпуск</h3><div class="ev" style="cursor:pointer" data-act="openTrip" data-id="${nextTrip.id}"><div class="when soon">${tripLeft(nextTrip).txt.replace('идёт сейчас 🌴', 'сейчас')}<small>${tripDates(nextTrip).split(' · ')[0]}</small></div><div class="t"><b>🏖️ ${esc(nextTrip.title)}</b><div class="mute">${nextTrip.place ? esc(nextTrip.place) + ' · ' : ''}${(() => { const p = tripProgress(nextTrip), parts = [['дела и планы', p.todo], ['сборы', p.pack], ['брони', p.book]].filter(([, v]) => v != null).map(([n, v]) => `${n} ${v}%`); return parts.length ? 'готовность: ' + parts.join(', ') : 'нажмите, чтобы добавить дела, брони и бюджет'; })()}</div></div></div>` : ''}
     ${soon.length ? `<h3>Ближайшие даты</h3>${soon.map(e => evRow(e)).join('')}` : '<p class="mute">Ближайших дат нет. Добавьте людей в разделе «Дни рождения и праздники».</p>'}
   </div>
   <div class="tiles">${MODULES.map(m => m.link
@@ -574,12 +574,11 @@ function pct30(r) {
   return n ? Math.round(ok / n * 100) : null;
 }
 function ruleRow(r, ds) {
-  const c = rcnt(r, ds), t = r.target || 1, done = c >= t, st = streak(r);
+  const c = rcnt(r, ds), t = r.target || 1, done = c >= t;
   const ctrl = t === 1
     ? `<input type="checkbox" class="chk" data-rchk="${r.id}" ${done ? 'checked' : ''}>`
     : `<div style="display:flex;gap:6px;align-items:center;flex:none"><button class="ghost" data-act="rminus" data-id="${r.id}" style="padding:4px 11px">−</button><b style="min-width:42px;text-align:center">${c}/${t}</b><button class="ghost" data-act="rplus" data-id="${r.id}" style="padding:4px 11px">+</button></div>`;
-  return `<div class="ev ${done ? 'tdone done' : ''}">${ctrl}<div class="t"><b>${esc(r.emoji || '🌿')} ${esc(r.title)}</b>${t > 1 ? `<span class="tag">${esc(r.unit || 'раз')}</span>` : ''}${st >= 2 ? `<span class="tag imp">🔥 ${st} ${plural(st, 'день', 'дня', 'дней')} подряд</span>` : ''}
-    ${t > 1 ? `<div style="height:6px;border-radius:3px;background:var(--line);margin-top:6px;overflow:hidden"><i style="display:block;height:100%;width:${Math.min(100, c / t * 100)}%;background:var(--acc)"></i></div>` : ''}${r.note ? `<div class="mute">${esc(r.note)}</div>` : ''}</div></div>`;
+  return `<div class="ev ${done ? 'tdone done' : ''}">${ctrl}<div class="t"><b>${esc(r.emoji || '🌿')} ${esc(r.title)}</b>${t > 1 ? `<span class="tag">${esc(r.unit || 'раз')}</span>` : ''}    ${t > 1 ? `<div style="height:6px;border-radius:3px;background:var(--line);margin-top:6px;overflow:hidden"><i style="display:block;height:100%;width:${Math.min(100, c / t * 100)}%;background:var(--acc)"></i></div>` : ''}${r.note ? `<div class="mute">${esc(r.note)}</div>` : ''}</div></div>`;
 }
 function viewRules() {
   const tabs = [['today', 'Сегодня'], ['week', 'Неделя'], ['manage', 'Мои правила'], ['cal', 'Напоминания']];
@@ -592,7 +591,7 @@ function viewRules() {
     return head + `${pre.length ? `<div class="card"><h2>Быстро добавить</h2><div class="row">${PRESETS.map((p, i) => have.includes(p.title) ? '' : `<button class="ghost" data-act="preset" data-i="${i}">${p.emoji} ${esc(p.title)}</button>`).join('')}</div></div>` : ''}
       <div class="card"><h2>Мои правила (${D.rules.length})</h2>${D.rules.length ? D.rules.map(r => `<div class="ev ${r.active === false ? 'done' : ''}"><div class="when" style="min-width:60px;font-size:24px">${esc(r.emoji || '🌿')}</div><div class="t"><b>${esc(r.title)}</b>${r.active === false ? '<span class="tag">на паузе</span>' : ''}
         <div class="mute">${r.days.length === 7 ? 'каждый день' : ALL_DAYS.filter(d => r.days.includes(d)).map(d => DOWN[d]).join(', ')} · ${PARTS[r.part || 'any'].replace(/^\S+ /, '')}${(r.target || 1) > 1 ? ` · ${r.target} ${esc(r.unit || 'раз')}` : ''}${r.time ? ' · напоминание в ' + r.time : ''}</div>
-        <div class="mute">Серия: ${streak(r)} · за 30 дней: ${pct30(r) == null ? '—' : pct30(r) + '%'}</div></div>
+        <div class="mute">За 30 дней: ${pct30(r) == null ? '—' : pct30(r) + '%'}</div></div>
         <div><button class="lnk" data-act="editRule" data-id="${r.id}">править</button><button class="lnk" data-act="pauseRule" data-id="${r.id}">${r.active === false ? 'включить' : 'пауза'}</button><button class="lnk" data-act="delRule" data-id="${r.id}">×</button></div></div>`).join('') : '<p class="mute">Правил пока нет. Добавьте их кнопкой «+ Правило» или выберите из быстрых вариантов.</p>'}</div>`;
   }
   if (rtab === 'week') {
