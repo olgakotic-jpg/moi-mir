@@ -114,6 +114,7 @@ button.lnk{background:none;border:0;color:var(--acc);cursor:pointer;font:inherit
 .when.soon{background:var(--gold);color:var(--goldink)}
 .ev.done{opacity:.55}
 .ev .t{flex:1}.ev .t b{font-size:16px}.mute{color:var(--mute)}
+.ev.evc{padding:7px 0;gap:10px;align-items:center;flex-wrap:nowrap}.ev.evc .when{min-width:84px;padding:4px 3px;font-size:14px}.ev.evc .when small{font-size:11px}.ev.evc .t b{font-size:15px}.ev.evc .mute{font-size:13px;margin-top:1px}.ev.evc .gift{font-size:13px;padding:2px 8px;margin-top:3px}
 .tag{display:inline-block;font-size:12px;border-radius:999px;padding:1px 9px;background:var(--acc2);color:var(--acc);margin-left:4px}
 .gift{background:var(--gold);color:var(--goldink);border-radius:8px;padding:6px 10px;margin-top:6px;font-size:14px}
 .warn{background:var(--gold);color:var(--goldink);padding:10px 12px;border-radius:8px;margin-bottom:12px}
@@ -319,7 +320,6 @@ function whenBox(e) {
   return `<div class="when ${cls}">${big}<small>${e.date.getDate()} ${MONTHS[e.date.getMonth()]}</small></div>`;
 }
 function evRow(e, opts = {}) {
-  const done = D.done[doneKey(e)];
   let body;
   if (e.kind === 'bd') {
     const p = e.p;
@@ -328,10 +328,10 @@ function evRow(e, opts = {}) {
       ${p.gifts ? `<div class="gift">🎁 ${esc(p.gifts)}</div>` : ''}`;
   } else {
     const who = holWho(e.h);
-    body = `<b>🎉 ${esc(e.h.name)}</b><div class="mute">${who ? 'Поздравить: ' + esc(who) : 'Праздник. Укажите, кого поздравить (в карточке человека или во вкладке «Праздники»)'}</div>`;
+    body = `<b>🎉 ${esc(e.h.name)}</b><div class="mute">${who ? 'Поздравить: ' + esc(who) : 'Укажите, кого поздравить (во вкладке «Праздники»)'}</div>`;
   }
-  return `<div class="ev ${done ? 'done' : ''}">${whenBox(e)}<div class="t">${body}</div>
-    <div><button class="ghost" data-act="done" data-key="${doneKey(e)}">${done ? '✔ Поздравила' : 'Поздравила?'}</button></div></div>`;
+  return `<div class="ev evc">${whenBox(e)}<div class="t">${body}</div>
+    </div>`;
 }
 
 /* ---- представления ---- */
